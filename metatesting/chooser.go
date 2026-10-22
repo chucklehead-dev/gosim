@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
-	"github.com/jellevandenhooff/gosim/internal/prettylog"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/prettylog"
 )
 
 // A Chooser makes a run's choices from the runner's side: which goroutine

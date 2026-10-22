@@ -8,7 +8,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
 )
 
 // weaveOverlay holds replacement sources for the packages being

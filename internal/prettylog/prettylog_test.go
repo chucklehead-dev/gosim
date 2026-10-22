@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
-	"github.com/jellevandenhooff/gosim/internal/prettylog"
-	"github.com/jellevandenhooff/gosim/metatesting"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/prettylog"
+	"github.com/chucklehead-dev/gosim/metatesting"
 )
 
 var (

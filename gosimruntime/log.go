@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jellevandenhooff/gosim/internal/prettylog"
+	"github.com/chucklehead-dev/gosim/internal/prettylog"
 )
 
 var (

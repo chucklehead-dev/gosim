@@ -16,13 +16,27 @@ import (
 
 	"golang.org/x/mod/modfile"
 
-	"github.com/jellevandenhooff/gosim/internal/race"
+	"github.com/chucklehead-dev/gosim/internal/race"
 )
 
 const (
-	Module          = "github.com/jellevandenhooff/gosim"
+	Module          = "github.com/chucklehead-dev/gosim"
 	OutputDirectory = ".gosim"
 )
+
+// SupportedGo is the Go release whose standard library the translator's
+// hooks (internal/hooks/go123) match. Another release's runtime entry
+// points differ, and translation would fail deep inside, or worse, not.
+const SupportedGo = "go1.26"
+
+// CheckGoVersion fails unless version (runtime.Version()) is a release of
+// SupportedGo. Development builds pass: their version says nothing.
+func CheckGoVersion(version string) error {
+	if strings.HasPrefix(version, "devel") || version == SupportedGo || strings.HasPrefix(version, SupportedGo+".") || strings.HasPrefix(version, SupportedGo+"rc") {
+		return nil
+	}
+	return fmt.Errorf("this gosim translates %s's standard library, not %s's: build it with %s (GOTOOLCHAIN=%s.1), or use a gosim release for %s", SupportedGo, version, SupportedGo, SupportedGo, version)
+}
 
 type BuildConfig struct {
 	GOOS   string

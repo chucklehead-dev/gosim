@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimlog"
+	"github.com/chucklehead-dev/gosim/internal/gosimlog"
 )
 
 func TestUnmarshalLog(t *testing.T) {

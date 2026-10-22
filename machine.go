@@ -4,8 +4,8 @@ import (
 	"iter"
 	"net/netip"
 
-	"github.com/jellevandenhooff/gosim/internal/simulation"
-	"github.com/jellevandenhooff/gosim/internal/simulation/fs"
+	"github.com/chucklehead-dev/gosim/internal/simulation"
+	"github.com/chucklehead-dev/gosim/internal/simulation/fs"
 )
 
 // A Machine represents a simulated machine. Each machine has its own disk,

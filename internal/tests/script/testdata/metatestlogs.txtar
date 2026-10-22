@@ -1,4 +1,5 @@
 # metatest forwards logs
+skip 'race mode does not build on Go 1.26 yet (FORK.md)'
 
 # normally we do not see prefixed forwarded logs
 exec go test -run=Ok -race -count=1 -v .
@@ -16,7 +17,7 @@ package behavior_test
 import (
 	"testing"
 
-    "github.com/jellevandenhooff/gosim/metatesting"
+    "github.com/chucklehead-dev/gosim/metatesting"
 )
 
 func TestOk(t *testing.T) {

@@ -18,9 +18,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
-	"github.com/jellevandenhooff/gosim/internal/gosimviewer"
-	"github.com/jellevandenhooff/gosim/internal/translate"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/gosimviewer"
+	"github.com/chucklehead-dev/gosim/internal/translate"
 )
 
 //go:embed doc.go
@@ -144,6 +144,11 @@ func main() {
 		fmt.Print(doc())
 	}
 	flag.Parse()
+
+	if err := gosimtool.CheckGoVersion(runtime.Version()); err != nil {
+		fmt.Fprintln(os.Stderr, "gosim:", err)
+		os.Exit(2)
+	}
 
 	if len(flag.Args()) < 1 {
 		flag.Usage()

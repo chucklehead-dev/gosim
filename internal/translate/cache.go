@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
-	"github.com/jellevandenhooff/gosim/internal/translate/cache"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/translate/cache"
 )
 
 type Hash [32]byte

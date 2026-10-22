@@ -9,7 +9,7 @@ import (
 	"iter"
 	"unsafe"
 
-	"github.com/jellevandenhooff/gosim/internal/race"
+	"github.com/chucklehead-dev/gosim/internal/race"
 )
 
 type waitq struct {

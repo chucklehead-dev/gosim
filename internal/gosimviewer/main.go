@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jellevandenhooff/gosim/internal/gosimlog"
-	"github.com/jellevandenhooff/gosim/internal/gosimtool"
+	"github.com/chucklehead-dev/gosim/internal/gosimlog"
+	"github.com/chucklehead-dev/gosim/internal/gosimtool"
 )
 
 type Server struct {

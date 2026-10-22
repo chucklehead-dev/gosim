@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/jellevandenhooff/gosim/internal/race"
+	"github.com/chucklehead-dev/gosim/internal/race"
 )
 
 const checkMap = false
