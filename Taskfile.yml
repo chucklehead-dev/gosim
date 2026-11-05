@@ -8,6 +8,12 @@ vars:
   SIMPACKAGES: ./internal/tests/behavior ./nemesis
 
 tasks:
+  toolchain-check:
+    desc: Check effective Go selection and translation cache identity without translation
+    cmds:
+      - go test ./internal/gosimtool ./internal/translate -run 'TestCheckGoVersion|TestResolveToolchain|TestTranslateCacheIncludesEffectiveToolchain' -count=1
+      - go vet ./internal/gosimtool
+
   fix-fmt:
     cmds:
       - .ci/gofmt fix

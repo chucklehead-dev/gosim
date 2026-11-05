@@ -98,11 +98,9 @@ func (t *packageTranslator) rewriteIdentImpl(ident *dst.Ident) {
 	if pkg == "" {
 		panic(replacement.Pkg + " " + replacement.Selector)
 	}
-	// XXX
-	// pkg = t.replacedPkgs[pkg]
-	// if pkg == "" {
-	// panic(replacement.Pkg + " " + replacement.Selector)
-	// }
+	if translated, ok := t.replacedPkgs[pkg]; ok {
+		pkg = translated
+	}
 
 	ident.Name = replacement.Selector
 	ident.Path = pkg
@@ -115,6 +113,21 @@ func (t *packageTranslator) rewriteIdent(c *dstutil.Cursor) {
 	}
 }
 
+// translatedLinknameImplementations records reciprocal declarations whose body
+// lives in another translated package. Keeping these symbols inside the
+// translated graph preserves their types and initialization behavior.
+var translatedLinknameImplementations = map[packageSelector]packageSelector{
+	{Pkg: "crypto/internal/fips140hash", Selector: "sha3Unwrap"}: {Pkg: "crypto/sha3", Selector: "fips140hash_sha3Unwrap"},
+}
+
+// These implemented functions expose standard-library internals only to Go's
+// own external tests. Ordinary translations keep the bodies without exporting
+// symbols into an untranslated test package.
+var outboundTestLinknames = map[packageSelector]packageSelector{
+	{Pkg: "net/http", Selector: "protocolSetHTTP3"}:         {Pkg: "golang.org/x/net/internal/http3_test", Selector: "protocolSetHTTP3"},
+	{Pkg: "net/http", Selector: "transportFromH1Transport"}: {Pkg: "net/http/internal/http2_test", Selector: "transportFromH1Transport"},
+}
+
 func (t *packageTranslator) rewriteStdlibEmptyAndLinkname(c *dstutil.Cursor) {
 	node := c.Node()
 
@@ -125,6 +138,20 @@ func (t *packageTranslator) rewriteStdlibEmptyAndLinkname(c *dstutil.Cursor) {
 	// Hooks and linknames name functions; a method of the same name (like
 	// internal/synctest's Bubble.Run next to Run) is not one of them.
 	if decl.Recv != nil {
+		return
+	}
+	// Comparable hashing must not reach the host runtime's process-random
+	// MapType.Hasher. A generic declaration cannot be replaced by linkname;
+	// keep its typed entrypoint and delegate the value and logical seed.
+	if t.pkgPath == "hash/maphash" && decl.Name.Name == "comparableHash" {
+		pkg := hooksGo123Package
+		if replaced, ok := t.replacedPkgs[pkg]; ok {
+			pkg = replaced
+		}
+		decl.Body = &dst.BlockStmt{List: []dst.Stmt{&dst.ReturnStmt{Results: []dst.Expr{&dst.CallExpr{
+			Fun:  &dst.Ident{Path: pkg, Name: "HashMaphash_Comparable"},
+			Args: []dst.Expr{dst.NewIdent("v"), &dst.SelectorExpr{X: dst.NewIdent("seed"), Sel: dst.NewIdent("s")}},
+		}}}}}
 		return
 	}
 	// Generic intrinsics cannot be linknamed to a hook: give them an empty
@@ -143,7 +170,13 @@ func (t *packageTranslator) rewriteStdlibEmptyAndLinkname(c *dstutil.Cursor) {
 			decl.Decs.Start[i] = "//go:uintptrescapes" // uintptrkeepalive is only allowed in standard library...
 		}
 
-		if strings.HasPrefix(val, "//go:linkname") {
+		// Translated packages are no longer standard-library packages. Resolve
+		// both directives through the same explicit hook/accepted-target policy.
+		parts := strings.Fields(val)
+		if len(parts) > 0 && (parts[0] == "//go:linkname" || parts[0] == "//go:linknamestd") {
+			parts[0] = "//go:linkname"
+			val = strings.Join(parts, " ")
+			decl.Decs.Start[i] = val
 			hasLinkname = true
 
 			if _, ok := t.hooks[packageSelector{Pkg: t.pkgPath, Selector: decl.Name.Name}]; ok {
@@ -152,11 +185,11 @@ func (t *packageTranslator) rewriteStdlibEmptyAndLinkname(c *dstutil.Cursor) {
 				continue
 			}
 
-			parts := strings.Split(val, " ")
-
 			if len(parts) == 2 && decl.Body == nil {
-				// TODO: make this fail the build?
-				slog.Error("unknown linkname with no body", "pkg", t.pkgPath, "name", decl.Name.Name)
+				implementation, known := translatedLinknameImplementations[packageSelector{Pkg: t.pkgPath, Selector: decl.Name.Name}]
+				if _, translated := t.replacedPkgs[implementation.Pkg]; !known || !translated {
+					reportMissingBody(t.pkgPath, decl.Name.Name)
+				}
 			}
 
 			if len(parts) == 3 {
@@ -176,11 +209,17 @@ func (t *packageTranslator) rewriteStdlibEmptyAndLinkname(c *dstutil.Cursor) {
 					} else if strings.HasPrefix(pkg, "gosimnotranslate/") {
 						parts[2] = fmt.Sprintf("%s.%s", strings.TrimPrefix(pkg, "gosimnotranslate/"), name)
 						decl.Decs.Start[i] = strings.Join(parts, " ")
+					} else if decl.Body != nil && outboundTestLinknames[packageSelector{Pkg: t.pkgPath, Selector: decl.Name.Name}] == (packageSelector{Pkg: pkg, Selector: name}) {
+						decl.Decs.Start[i] = "// gosim removed outbound test alias: " + val
+						hasLinkname = false
 					} else {
-						// TODO: make this fail the build?
-						slog.Error("unknown linkname", "pkg", t.pkgPath, "name", decl.Name.Name, "targetPkg", pkg, "targetName", name)
+						reportMissingBody(t.pkgPath, decl.Name.Name)
 					}
+				} else {
+					reportMissingBody(t.pkgPath, decl.Name.Name)
 				}
+			} else if len(parts) != 2 {
+				reportMissingBody(t.pkgPath, decl.Name.Name)
 			}
 		}
 	}

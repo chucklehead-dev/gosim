@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/version"
 	"os"
 	"os/exec"
 	"path"
@@ -24,24 +25,75 @@ const (
 	OutputDirectory = ".gosim"
 )
 
-// SupportedGo is the Go release whose standard library the translator's
-// hooks (internal/hooks/go123) match. Another release's runtime entry
-// points differ, and translation would fail deep inside, or worse, not.
-const SupportedGo = "go1.26"
+// SupportedGo is the Go release whose standard library the translator hooks
+// target. Other release families are rejected before translation.
+const SupportedGo = "go1.27"
 
-// CheckGoVersion fails unless version (runtime.Version()) is a release of
-// SupportedGo. Development builds pass: their version says nothing.
-func CheckGoVersion(version string) error {
-	if strings.HasPrefix(version, "devel") || version == SupportedGo || strings.HasPrefix(version, SupportedGo+".") || strings.HasPrefix(version, SupportedGo+"rc") {
+// RecommendedGo is the maintained toolchain used to validate this target.
+const RecommendedGo = "go1.27.3"
+
+// CheckGoVersion accepts stable releases of the supported family. Unknown
+// development and prerelease runtimes must not silently claim hook support.
+func CheckGoVersion(v string) error {
+	if version.IsValid(v) && version.Lang(v) == SupportedGo && !strings.Contains(v, "rc") && !strings.Contains(v, "beta") {
 		return nil
 	}
-	return fmt.Errorf("this gosim translates %s's standard library, not %s's: build it with %s (GOTOOLCHAIN=%s.1), or use a gosim release for %s", SupportedGo, version, SupportedGo, SupportedGo, version)
+	return fmt.Errorf("this gosim translates %s's standard library, not %s's: select GOTOOLCHAIN=%s or use a gosim release for %s", SupportedGo, v, RecommendedGo, v)
+}
+
+// Toolchain identifies the effective compiler and standard library selected by
+// the go command, including GOTOOLCHAIN selection in the caller's module.
+type Toolchain struct {
+	Version string
+	GOROOT  string
+}
+
+// ResolveToolchain validates the go command's actual selection, rather than the
+// runtime that happened to build an installed gosim executable.
+func ResolveToolchain() (Toolchain, error) {
+	cmd := exec.Command("go", "env", "-json", "GOVERSION", "GOROOT")
+	output, err := cmd.Output()
+	if err != nil {
+		if failure, ok := errors.AsType[*exec.ExitError](err); ok && len(failure.Stderr) > 0 {
+			return Toolchain{}, fmt.Errorf("resolve Go toolchain: %w: %s", err, strings.TrimSpace(string(failure.Stderr)))
+		}
+		return Toolchain{}, fmt.Errorf("resolve Go toolchain: %w", err)
+	}
+	var selection struct{ GOVERSION, GOROOT string }
+	if err := json.Unmarshal(output, &selection); err != nil {
+		return Toolchain{}, fmt.Errorf("resolve Go toolchain: invalid go env output: %w", err)
+	}
+	if err := CheckGoVersion(selection.GOVERSION); err != nil {
+		return Toolchain{}, err
+	}
+	if !filepath.IsAbs(selection.GOROOT) {
+		return Toolchain{}, fmt.Errorf("resolve Go toolchain: GOROOT %q is not absolute", selection.GOROOT)
+	}
+	root, err := filepath.EvalSymlinks(selection.GOROOT)
+	if err != nil {
+		return Toolchain{}, fmt.Errorf("resolve GOROOT: %w", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "VERSION"))
+	if err != nil {
+		return Toolchain{}, fmt.Errorf("read GOROOT version: %w", err)
+	}
+	rootVersion, _, _ := strings.Cut(string(data), "\n")
+	if rootVersion != selection.GOVERSION {
+		return Toolchain{}, fmt.Errorf("go env selects %s but GOROOT %s contains %s: clear a mismatched GOROOT", selection.GOVERSION, root, rootVersion)
+	}
+	return Toolchain{Version: selection.GOVERSION, GOROOT: root}, nil
+}
+
+// Env pins subprocess package loading/builds to this validated selection.
+func (t Toolchain) Env() []string {
+	return []string{"GOTOOLCHAIN=" + t.Version, "GOROOT=" + t.GOROOT}
 }
 
 type BuildConfig struct {
-	GOOS   string
-	GOARCH string
-	Race   bool
+	Toolchain Toolchain
+	GOOS      string
+	GOARCH    string
+	Race      bool
 }
 
 func (b BuildConfig) AsDirname() string {

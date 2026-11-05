@@ -431,10 +431,8 @@ func (b *implicitConversionsBuilder) before(c *astutil.Cursor) bool {
 			y := b.typesInfo.Types[node.Rhs[i]]
 			if !types.Identical(x.Type, y.Type) {
 				if x.Type == nil {
+					// Happens for :=, var ... =.
 					continue
-					// happens for :=, var ... =
-					log.Println(node.Lhs, node.Rhs[i])
-					panic("help")
 				}
 				b.conversions[node.Rhs[i]] = x.Type
 			}

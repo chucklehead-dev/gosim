@@ -196,8 +196,9 @@ func SyncAtomic_AndInt32(addr *int32, delta int32) (new int32) {
 	if race.Enabled {
 		return atomic.AndInt32(addr, delta)
 	}
+	old := *addr
 	*addr &= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_AndUint32(addr *uint32, delta uint32) (new uint32) {
@@ -205,8 +206,9 @@ func SyncAtomic_AndUint32(addr *uint32, delta uint32) (new uint32) {
 	if race.Enabled {
 		return atomic.AndUint32(addr, delta)
 	}
+	old := *addr
 	*addr &= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_AndInt64(addr *int64, delta int64) (new int64) {
@@ -214,8 +216,9 @@ func SyncAtomic_AndInt64(addr *int64, delta int64) (new int64) {
 	if race.Enabled {
 		return atomic.AndInt64(addr, delta)
 	}
+	old := *addr
 	*addr &= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_AndUint64(addr *uint64, delta uint64) (new uint64) {
@@ -223,8 +226,9 @@ func SyncAtomic_AndUint64(addr *uint64, delta uint64) (new uint64) {
 	if race.Enabled {
 		return atomic.AndUint64(addr, delta)
 	}
+	old := *addr
 	*addr &= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_AndUintptr(addr *uintptr, delta uintptr) (new uintptr) {
@@ -232,8 +236,9 @@ func SyncAtomic_AndUintptr(addr *uintptr, delta uintptr) (new uintptr) {
 	if race.Enabled {
 		return atomic.AndUintptr(addr, delta)
 	}
+	old := *addr
 	*addr &= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_OrInt32(addr *int32, delta int32) (new int32) {
@@ -241,8 +246,9 @@ func SyncAtomic_OrInt32(addr *int32, delta int32) (new int32) {
 	if race.Enabled {
 		return atomic.OrInt32(addr, delta)
 	}
+	old := *addr
 	*addr |= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_OrUint32(addr *uint32, delta uint32) (new uint32) {
@@ -250,8 +256,9 @@ func SyncAtomic_OrUint32(addr *uint32, delta uint32) (new uint32) {
 	if race.Enabled {
 		return atomic.OrUint32(addr, delta)
 	}
+	old := *addr
 	*addr |= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_OrInt64(addr *int64, delta int64) (new int64) {
@@ -259,8 +266,9 @@ func SyncAtomic_OrInt64(addr *int64, delta int64) (new int64) {
 	if race.Enabled {
 		return atomic.OrInt64(addr, delta)
 	}
+	old := *addr
 	*addr |= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_OrUint64(addr *uint64, delta uint64) (new uint64) {
@@ -268,8 +276,9 @@ func SyncAtomic_OrUint64(addr *uint64, delta uint64) (new uint64) {
 	if race.Enabled {
 		return atomic.OrUint64(addr, delta)
 	}
+	old := *addr
 	*addr |= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_OrUintptr(addr *uintptr, delta uintptr) (new uintptr) {
@@ -277,8 +286,9 @@ func SyncAtomic_OrUintptr(addr *uintptr, delta uintptr) (new uintptr) {
 	if race.Enabled {
 		return atomic.OrUintptr(addr, delta)
 	}
+	old := *addr
 	*addr |= delta
-	return *addr
+	return old
 }
 
 func SyncAtomic_LoadInt32(addr *int32) (val int32) {

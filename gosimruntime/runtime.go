@@ -90,7 +90,9 @@ func newMachine(label string) *Machine {
 }
 
 type scheduler struct {
-	seed int64
+	// Per-run identities for maphash.Comparable; never serialized as addresses.
+	hashPointers map[unsafe.Pointer]uint64
+	seed         int64
 
 	goroutines      intrusiveList[*goroutine]
 	runnable        intrusiveList[*goroutine]

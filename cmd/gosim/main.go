@@ -145,9 +145,18 @@ func main() {
 	}
 	flag.Parse()
 
-	if err := gosimtool.CheckGoVersion(runtime.Version()); err != nil {
+	toolchain, err := gosimtool.ResolveToolchain()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "gosim:", err)
 		os.Exit(2)
+	}
+	// All go subprocesses must use the standard library that was checked above.
+	for _, setting := range toolchain.Env() {
+		key, value, _ := strings.Cut(setting, "=")
+		if err := os.Setenv(key, value); err != nil {
+			fmt.Fprintln(os.Stderr, "gosim: pin Go toolchain:", err)
+			os.Exit(2)
+		}
 	}
 
 	if len(flag.Args()) < 1 {
@@ -158,9 +167,10 @@ func main() {
 	cmdArgs := flag.Args()[1:]
 
 	cfg := gosimtool.BuildConfig{
-		GOOS:   "linux",
-		GOARCH: runtime.GOARCH,
-		Race:   false,
+		Toolchain: toolchain,
+		GOOS:      "linux",
+		GOARCH:    runtime.GOARCH,
+		Race:      false,
 	}
 
 	switch cmd {

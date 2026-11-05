@@ -69,6 +69,8 @@ func computeTranslateToolHash(cfg gosimtool.BuildConfig) Hash {
 	h := NewHasher()
 	h.addString("runner")
 	h.addString(cfg.AsDirname())
+	h.addString(cfg.Toolchain.Version)
+	h.addString(cfg.Toolchain.GOROOT)
 	h.addString(weaveHash) // the aspects woven in (weave.go)
 	binaryPath, err := os.Executable()
 	if err != nil {

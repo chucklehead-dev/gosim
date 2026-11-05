@@ -2311,6 +2311,8 @@ func SyscallName(trap uintptr) string {
 		return "SYS_RSEQ"
 	case unix.SYS_URETPROBE: // 335
 		return "SYS_URETPROBE"
+	case unix.SYS_UPROBE: // 336
+		return "SYS_UPROBE"
 	case unix.SYS_PIDFD_SEND_SIGNAL: // 424
 		return "SYS_PIDFD_SEND_SIGNAL"
 	case unix.SYS_IO_URING_SETUP: // 425
@@ -2389,6 +2391,24 @@ func SyscallName(trap uintptr) string {
 		return "SYS_LSM_LIST_MODULES"
 	case unix.SYS_MSEAL: // 462
 		return "SYS_MSEAL"
+	case unix.SYS_SETXATTRAT: // 463
+		return "SYS_SETXATTRAT"
+	case unix.SYS_GETXATTRAT: // 464
+		return "SYS_GETXATTRAT"
+	case unix.SYS_LISTXATTRAT: // 465
+		return "SYS_LISTXATTRAT"
+	case unix.SYS_REMOVEXATTRAT: // 466
+		return "SYS_REMOVEXATTRAT"
+	case unix.SYS_OPEN_TREE_ATTR: // 467
+		return "SYS_OPEN_TREE_ATTR"
+	case unix.SYS_FILE_GETATTR: // 468
+		return "SYS_FILE_GETATTR"
+	case unix.SYS_FILE_SETATTR: // 469
+		return "SYS_FILE_SETATTR"
+	case unix.SYS_LISTNS: // 470
+		return "SYS_LISTNS"
+	case unix.SYS_RSEQ_SLICE_YIELD: // 471
+		return "SYS_RSEQ_SLICE_YIELD"
 
 	default:
 		return "unknown"

@@ -119,25 +119,79 @@ func TestTimerStopOk(t *testing.T) {
 	}
 }
 
-func TestTimerStopNotOk(t *testing.T) {
+// An expired but unread channel timer is still stoppable. Stop removes its
+// pending value, and Reset cannot expose that value as a stale receive.
+func TestTimerStopExpiredUnread(t *testing.T) {
 	a := time.Now()
-
 	timer := time.NewTimer(10 * time.Second)
-
-	time.Sleep(20 * time.Second)
-
-	if !timer.Stop() {
-		<-timer.C
-		timer.Reset(20 * time.Second)
-	} else {
-		t.Error("bad")
+	if cap(timer.C) != 0 || len(timer.C) != 0 {
+		t.Fatal("timer channel must appear synchronous")
 	}
+	time.Sleep(20 * time.Second)
+	if len(timer.C) != 0 || !timer.Stop() {
+		t.Fatal("expired unread timer was not stopped")
+	}
+	select {
+	case <-timer.C:
+		t.Fatal("Stop left a stale timer value")
+	default:
+	}
+	if timer.Stop() || timer.Reset(20*time.Second) {
+		t.Fatal("stopped timer was still active")
+	}
+	value := <-timer.C
+	if value.Sub(a) != 40*time.Second || time.Since(a) != 40*time.Second {
+		t.Fatal("Reset delivered an old value", value, a)
+	}
+	if timer.Stop() {
+		t.Fatal("received timer was still active")
+	}
+}
 
-	<-timer.C
+func TestTimerResetExpiredUnread(t *testing.T) {
+	a := time.Now()
+	timer := time.NewTimer(10 * time.Second)
+	time.Sleep(20 * time.Second)
+	if !timer.Reset(5 * time.Second) {
+		t.Fatal("unread timer Reset must report active")
+	}
+	select {
+	case <-timer.C:
+		t.Fatal("Reset left a stale timer value")
+	default:
+	}
+	if value := <-timer.C; value.Sub(a) != 25*time.Second {
+		t.Fatal("Reset delivered an old value", value, a)
+	}
+}
 
-	b := time.Now()
-	if b.Sub(a) != 40*time.Second {
-		t.Error(a, b)
+func TestTimerStopImmediate(t *testing.T) {
+	// The timer is ready at the current instant, but its callback may only be
+	// queued. Stop must invalidate that callback as well as any hidden value.
+	for range 20 {
+		timer := time.NewTimer(0)
+		if !timer.Stop() {
+			t.Fatal("unreceived immediate timer was not stopped")
+		}
+		time.Sleep(time.Nanosecond)
+		select {
+		case <-timer.C:
+			t.Fatal("queued callback sent after Stop")
+		default:
+		}
+	}
+}
+
+func TestTimerResetImmediate(t *testing.T) {
+	for range 20 {
+		start := time.Now()
+		timer := time.NewTimer(0)
+		if !timer.Reset(time.Second) {
+			t.Fatal("unreceived immediate timer was not active")
+		}
+		if value := <-timer.C; value.Sub(start) != time.Second {
+			t.Fatal("queued callback sent after Reset", value, start)
+		}
 	}
 }
 
@@ -271,19 +325,20 @@ func TestTimeTickerReset(t *testing.T) {
 	time.Sleep(7 * time.Second)
 	ticker.Reset(5 * time.Second)
 
-	v = <-ticker.C
-	if now := time.Now(); now.Sub(start) != 35*time.Second {
-		t.Error(start, now)
-	}
-	if v.Sub(start) != 30*time.Second {
-		t.Error(start, v)
-	}
-
+	// Reset removes the old pending tick at 30: the next tick is at 40.
 	v = <-ticker.C
 	if now := time.Now(); now.Sub(start) != 40*time.Second {
 		t.Error(start, now)
 	}
 	if v.Sub(start) != 40*time.Second {
+		t.Error(start, v)
+	}
+
+	v = <-ticker.C
+	if now := time.Now(); now.Sub(start) != 45*time.Second {
+		t.Error(start, now)
+	}
+	if v.Sub(start) != 45*time.Second {
 		t.Error(start, v)
 	}
 }
@@ -388,5 +443,51 @@ func TestTimeTickerNonBlocking(t *testing.T) {
 	}
 	if v.Sub(start) != 55*time.Second {
 		t.Error(start, v)
+	}
+}
+
+// Channel operations must observe due timers immediately, without waiting for
+// a separately scheduled delivery goroutine. This matches Go's maybeRunChan.
+func TestDueTimerSelectReadiness(t *testing.T) {
+	for _, delay := range []time.Duration{0, -time.Second} {
+		for range 50 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-timer.C:
+			default:
+				t.Fatalf("due timer (%v) was not ready", delay)
+			}
+			if timer.Stop() {
+				t.Fatal("received timer remained active")
+			}
+		}
+	}
+	start := time.Now()
+	timer := time.NewTimer(time.Second)
+	time.Sleep(time.Second)
+	select {
+	case value := <-timer.C:
+		if value.Sub(start) != time.Second {
+			t.Fatal("incorrect deadline", value, start)
+		}
+	default:
+		t.Fatal("timer was not ready at its deadline")
+	}
+	// Reset and Stop must discard readiness established at a prior deadline.
+	timer.Reset(0)
+	timer.Reset(time.Second)
+	select {
+	case <-timer.C:
+		t.Fatal("Reset exposed old readiness")
+	default:
+	}
+	timer.Reset(0)
+	if !timer.Stop() {
+		t.Fatal("unreceived timer was inactive")
+	}
+	select {
+	case <-timer.C:
+		t.Fatal("Stop exposed old readiness")
+	default:
 	}
 }

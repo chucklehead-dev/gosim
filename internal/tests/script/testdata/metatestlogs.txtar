@@ -1,5 +1,5 @@
 # metatest forwards logs
-skip 'race mode does not build on Go 1.26 yet (FORK.md)'
+skip 'race mode does not build on Go 1.27 yet (FORK.md)'
 
 # normally we do not see prefixed forwarded logs
 exec go test -run=Ok -race -count=1 -v .

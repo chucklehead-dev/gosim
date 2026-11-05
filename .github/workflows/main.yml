@@ -14,6 +14,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Fail rather than silently selecting a different toolchain.
+      GOTOOLCHAIN: local
 
     steps:
       - name: Checkout code
@@ -23,10 +26,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+          check-latest: false
+
+      - name: Check toolchain selection and cache identity
+        run: go run github.com/go-task/task/v3/cmd/task toolchain-check
 
       # run tests with -trimpath to hopefully share cache between gosim
       # invocations in different folders
       - name: Test
         # check-fmt and go-test, not test: race mode does not build on Go
-        # 1.26 yet (FORK.md), so go-race-test is left out until it does
+        # 1.27 yet (FORK.md), so go-race-test is left out until it does
         run: GOFLAGS=-trimpath go run github.com/go-task/task/v3/cmd/task --concurrency 1 check-fmt go-test

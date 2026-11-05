@@ -85,9 +85,14 @@ func (sq *waitq) dequeue() *sudog {
 			panic("help")
 		}
 		g.selected = elem
-		getg().upcall(func() {
+		if current := getg(); current != nil {
+			current.upcall(func() {
+				elem.goroutine.setWaiting(false)
+			})
+		} else {
+			// Timer delivery already runs on the scheduler stack.
 			elem.goroutine.setWaiting(false)
-		})
+		}
 		return elem
 	}
 	return nil
@@ -137,6 +142,13 @@ type chanImpl[V any] struct {
 	closed          bool
 	sendQ           waitq
 	recvQ           waitq
+
+	// Timer channels use a hidden buffer, but behave synchronously to users.
+	// Generations invalidate deliveries superseded by Stop or Reset.
+	timerChannel  bool
+	timerPeriodic bool
+	timerActive   bool
+	timerSequence uintptr
 }
 
 type Chan[V any] struct {
@@ -161,6 +173,51 @@ func NewChan[V any](capacity int) Chan[V] {
 			end:   0,
 			len:   0,
 		},
+	}
+}
+
+// TimerChan recovers the channel passed to time.newTimer by syncTimer.
+func TimerChan[V any](pointer unsafe.Pointer) Chan[V] {
+	return Chan[V]{impl: (*chanImpl[V])(pointer)}
+}
+
+// ConfigureTimer marks the hidden timer channel and starts a new generation.
+//
+//go:norace
+func (c Chan[V]) ConfigureTimer(sequence uintptr, periodic bool) bool {
+	active := c.impl.timerActive
+	c.impl.timerChannel = true
+	c.impl.timerPeriodic = periodic
+	c.impl.timerActive = true
+	c.impl.timerSequence = sequence
+	c.discardTimerValue()
+	return active
+}
+
+// StopTimer invalidates both buffered values and the current generation.
+//
+//go:norace
+func (c Chan[V]) StopTimer(sequence uintptr) bool {
+	active := c.impl.timerActive
+	c.impl.timerActive = false
+	c.impl.timerSequence = sequence
+	c.discardTimerValue()
+	return active
+}
+
+//go:norace
+func (c Chan[V]) discardTimerValue() {
+	clear(c.impl.buf)
+	c.impl.start, c.impl.end, c.impl.len = 0, 0, 0
+}
+
+// SendTimer establishes readiness atomically in the scheduler timer handler.
+// It must not yield: a due timer must be ready when a receiver resumes.
+//
+//go:norace
+func (c Chan[V]) SendTimer(value V, sequence uintptr) {
+	if c.impl.timerActive && c.impl.timerSequence == sequence && c.canSend() {
+		c.send(value)
 	}
 }
 
@@ -193,6 +250,9 @@ func (c Chan[V]) send(v V) {
 			if race.Enabled {
 				racesynccross(other.goroutine, &c.impl.race[0])
 			}
+		}
+		if c.impl.timerChannel && !c.impl.timerPeriodic {
+			c.impl.timerActive = false
 		}
 		other.item = v
 		other.success = true
@@ -319,6 +379,9 @@ func (c Chan[V]) recvOk() (V, bool) {
 		}
 		v := c.impl.buf[c.impl.start]
 		c.impl.len--
+		if c.impl.timerChannel && !c.impl.timerPeriodic {
+			c.impl.timerActive = false
+		}
 		c.impl.start = (c.impl.start + 1) % len(c.impl.buf)
 		return v, true
 	}
@@ -377,11 +440,17 @@ func (c Chan[V]) Recv() V {
 func (c Chan[V]) Len() int {
 	getg().yield()
 
+	if c.impl.timerChannel {
+		return 0
+	}
 	return c.impl.len
 }
 
 //go:norace
 func (c Chan[V]) Cap() int {
+	if c.impl.timerChannel {
+		return 0
+	}
 	return len(c.impl.buf)
 }
 
