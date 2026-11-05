@@ -25,6 +25,12 @@ look at what gosim can do.
 
 # Using Gosim
 
+This fork targets **Go 1.27**, with Go **1.27.3** as its minimum toolchain.
+Set `GOTOOLCHAIN=go1.27.3` when installing or running it. The translator checks
+which `go` command is actually selected, including its standard library root;
+an installed `gosim` binary does not determine the translation toolchain.
+See [FORK.md](FORK.md) for port validation commands and current limitations.
+
 ## From go test to gosim test
 Gosim tests standard go code and is used just like another go package. To get
 started with `gosim`, you need to import it in your module:

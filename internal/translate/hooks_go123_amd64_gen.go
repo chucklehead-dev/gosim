@@ -16,7 +16,7 @@ func init() {
 		{Pkg: "golang.org/x/sys/unix", Selector: "Fsync"}:       {Pkg: hooksGo123Package},
 		{Pkg: "golang.org/x/sys/unix", Selector: "Ftruncate"}:   {Pkg: hooksGo123Package},
 		{Pkg: "golang.org/x/sys/unix", Selector: "Getcwd"}:      {Pkg: hooksGo123Package},
-		{Pkg: "golang.org/x/sys/unix", Selector: "Getdents"}:    {Pkg: hooksGo123Package},
+		{Pkg: "golang.org/x/sys/unix", Selector: "getdents"}:    {Pkg: hooksGo123Package},
 		{Pkg: "golang.org/x/sys/unix", Selector: "getpeername"}: {Pkg: hooksGo123Package},
 		{Pkg: "golang.org/x/sys/unix", Selector: "Getpid"}:      {Pkg: hooksGo123Package},
 		{Pkg: "golang.org/x/sys/unix", Selector: "Getrandom"}:   {Pkg: hooksGo123Package},

@@ -243,12 +243,7 @@ func translatePackage(args *translatePackageArgs) *TranslatePackageResult {
 	ssaGlobals := collectGlobalsSSA(args.pkg)
 	// }
 
-	globalField := map[packageKind]string{
-		// TODO: share these constants with the global file code
-		PackageKindBase:    "G",
-		PackageKindTests:   "G",
-		PackageKindForTest: "GForTest",
-	}[kind]
+	globalField := globalsAccessorName(args.pkg.PkgPath, kind == PackageKindForTest, args.pkg.TypesInfo)
 	for _, global := range globals.globalsFields {
 		if _, ok := globalInfo.Container[global]; ok {
 			log.Fatal("help", args.pkg.PkgPath, global)
@@ -311,6 +306,7 @@ func translatePackage(args *translatePackageArgs) *TranslatePackageResult {
 
 	translator := &packageTranslator{
 		typesInfo:           args.pkg.TypesInfo,
+		globalAccessor:      globalField,
 		astMap:              dec.Map.Ast,
 		dstMap:              dec.Map.Dst,
 		replacedPkgs:        localReplacedPkgs,
@@ -422,12 +418,13 @@ type packageSelector struct {
 }
 
 type packageTranslator struct {
-	typesInfo     *types.Info
-	suffixCounter int
-	astMap        decorator.AstMap
-	dstMap        decorator.DstMap
-	replacedPkgs  map[string]string
-	pkgPath       string
+	globalAccessor string
+	typesInfo      *types.Info
+	suffixCounter  int
+	astMap         decorator.AstMap
+	dstMap         decorator.DstMap
+	replacedPkgs   map[string]string
+	pkgPath        string
 
 	hooks             map[packageSelector]packageSelector
 	acceptedLinknames map[packageSelector]packageSelector

@@ -29,8 +29,8 @@ type Globals struct {
 
 var globals gosimruntime.Global[Globals]
 
-func initializers(initializeShared bool) {}
-func G() *Globals                        { return globals.Get() }
+func initializers(initializeShared bool)      {}
+func GosimGlobals_635ed6c0b0a74269() *Globals { return globals.Get() }
 func init() {
 	gosimruntime.RegisterPackage("test/maketype").Globals = &gosimruntime.Globals{Globals: &globals, Initializers: initializers}
 }

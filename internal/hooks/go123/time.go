@@ -32,22 +32,22 @@ func fireRuntimeTimer(t *gosimruntime.Timer) {
 	rt := t.Arg.(*timeTimer)
 	machine := t.Machine
 
-	f := rt.f
-	arg := rt.arg
-	seq := rt.seq
-
-	// TODO: only Go here in race mode; otherwise (always?) try to reuse some
-	// outer (per-machine?) goroutine
-	gosimruntime.GoFromTimerHandler(func() {
-		// TODO: in mean mode, insert delay here?
-		if race.Enabled {
-			race.Acquire(unsafe.Pointer(rt))
-		}
-		delta := int64(0) // TODO: adjust?
-		f(arg, seq, delta)
-		// FIXME: this might be borked; standard library expects to run
-		// atomically instead of in a goroutine?
-	}, machine)
+	when := rt.when
+	if rt.c != nil {
+		// Channel readiness must be established before the scheduler resumes
+		// another goroutine. Capture the time base in the creating machine,
+		// since time.Now accesses translated machine globals.
+		value := rt.base.Add(time.Duration(when - rt.base.UnixNano()))
+		gosimruntime.TimerChan[time.Time](rt.c).SendTimer(value, rt.seq)
+	} else {
+		f, arg, seq := rt.f, rt.arg, rt.seq
+		gosimruntime.GoFromTimerHandler(func() {
+			if race.Enabled {
+				race.Acquire(unsafe.Pointer(rt))
+			}
+			f(arg, seq, gosimruntime.Nanotime()-when)
+		}, machine)
+	}
 
 	if rt.period != 0 {
 		// FIXME: this might be borked; base off now?
@@ -60,6 +60,7 @@ type timeTimer struct {
 	c    unsafe.Pointer
 	init bool
 	timer
+	base time.Time
 }
 
 type timer struct {
@@ -81,7 +82,11 @@ func Time_newTimer(when, period int64, f func(any, uintptr, int64), arg any, cp 
 		race.Release(unsafe.Pointer(t))
 	}
 
-	// TODO: use cp to do async chan stuff?
+	t.c = cp
+	t.base = time.Now()
+	if cp != nil {
+		gosimruntime.TimerChan[time.Time](cp).ConfigureTimer(t.seq, period != 0)
+	}
 
 	t.when = when
 	t.period = period
@@ -96,7 +101,12 @@ func Time_newTimer(when, period int64, f func(any, uintptr, int64), arg any, cp 
 
 //go:norace
 func Time_stopTimer(t *timeTimer) bool {
-	return t.pp.Stop()
+	stopped := t.pp.Stop()
+	if t.c != nil {
+		t.seq++
+		return gosimruntime.TimerChan[time.Time](t.c).StopTimer(t.seq)
+	}
+	return stopped
 }
 
 //go:norace
@@ -107,6 +117,11 @@ func Time_resetTimer(t *timeTimer, when, period int64) bool {
 
 	t.when = when
 	t.period = period
-
-	return t.pp.Reset(when)
+	t.base = time.Now()
+	stopped := t.pp.Reset(when)
+	if t.c != nil {
+		t.seq++
+		return gosimruntime.TimerChan[time.Time](t.c).ConfigureTimer(t.seq, period != 0)
+	}
+	return stopped
 }

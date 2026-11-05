@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -10,6 +11,28 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
 )
+
+// globalsAccessorName is exported for cross-package global references and avoids
+// every source identifier, including locals that could shadow generated calls.
+func globalsAccessorName(pkg string, forTest bool, info *types.Info) string {
+	suffix := ""
+	if forTest {
+		suffix = "ForTest"
+	}
+	digest := sha256.Sum256([]byte(pkg))
+	name := fmt.Sprintf("GosimGlobals%s_%x", suffix, digest[:8])
+	used := make(map[string]bool)
+	for ident := range info.Defs {
+		used[ident.Name] = true
+	}
+	for ident := range info.Uses {
+		used[ident.Name] = true
+	}
+	for used[name] {
+		name += "_"
+	}
+	return name
+}
 
 func (t *packageTranslator) rewriteJsonGlobalsHack(c *dstutil.Cursor) {
 	if decl, ok := c.Node().(*dst.FuncDecl); ok {
@@ -222,13 +245,12 @@ func makeDetgoGlobalsFile(t *packageTranslator, pkgName string, forTest bool) (*
 	// anonymous members. That might make the source of the globals a nice
 	// implementation detail.
 
-	funcName := "G"
+	funcName := t.globalAccessor
 	typName := "Globals"
 	varName := "globals"
 	initFuncName := "initializers"
 	field := "Globals"
 	if forTest {
-		funcName = "GForTest"
 		typName = "GlobalsForTest"
 		varName = "globalsForTest"
 		initFuncName = "initializersForTest"

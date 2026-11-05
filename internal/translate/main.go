@@ -38,6 +38,10 @@ var skippedPackagesGo123 = map[string]bool{
 
 	"unsafe": true,
 
+	// Native map machinery is compiler/runtime-owned. Simulated maps are rewritten
+	// to gosimruntime.Map; maphash only retains its compile-time hash-width constant.
+	"internal/runtime/maps": true,
+
 	"runtime/coverage": true, // XXX for now
 	"runtime/metrics":  true, // XXX for now
 	"runtime/pprof":    true, // XXX for now
@@ -89,6 +93,7 @@ var keepAsmPackagesGo123 = map[string]bool{
 }
 
 var PublicExportHacks = map[string][]string{
+	"encoding/json/jsontext":           {"export"},
 	"encoding/binary":                  {"littleEndian"},
 	"internal/poll":                    {"errNetClosing"},
 	"github.com/golang/protobuf/proto": {"enumsByName"},
@@ -96,9 +101,10 @@ var PublicExportHacks = map[string][]string{
 
 // XXX: replace the package instead
 var replacements = map[packageSelector]packageSelector{
-	{Pkg: "runtime", Selector: "SetFinalizer"}: {Pkg: gosimruntimePackage, Selector: "SetFinalizer"},
-	{Pkg: "runtime", Selector: "GOOS"}:         {Pkg: gosimruntimePackage, Selector: "GOOS"},
-	{Pkg: "runtime", Selector: "Gosched"}:      {Pkg: gosimruntimePackage, Selector: "Yield"},
+	{Pkg: "internal/runtime/maps", Selector: "Use64BitHash"}: {Pkg: hooksGo123Package, Selector: "InternalRuntimeMaps_Use64BitHash"},
+	{Pkg: "runtime", Selector: "SetFinalizer"}:               {Pkg: gosimruntimePackage, Selector: "SetFinalizer"},
+	{Pkg: "runtime", Selector: "GOOS"}:                       {Pkg: gosimruntimePackage, Selector: "GOOS"},
+	{Pkg: "runtime", Selector: "Gosched"}:                    {Pkg: gosimruntimePackage, Selector: "Yield"},
 }
 
 const gosimModPath = gosimtool.Module
@@ -145,7 +151,7 @@ func loadPackages(patterns []string, b gosimtool.BuildConfig, mode packages.Load
 	// TODO: if we support varying GOARCH here, we should select the arch-specific hooks at runtime...
 	env := append(os.Environ(), "GOOS="+b.GOOS, "GOARCH="+b.GOARCH, "CGO_ENABLED=0")
 	cfg.BuildFlags = []string{"-tags", strings.Join(tags, ",")}
-	cfg.Env = env
+	cfg.Env = append(env, b.Toolchain.Env()...)
 	cfg.Overlay = weaveOverlay
 
 	// load packages
@@ -339,12 +345,20 @@ type TranslateInput struct {
 }
 
 func Translate(input *TranslateInput) (*gosimtool.TranslateOutput, error) {
+	toolchain, err := gosimtool.ResolveToolchain()
+	if err != nil {
+		return nil, err
+	}
+	// Resolve even for direct API callers; a supplied identity is not proof of
+	// the compiler/standard library that package loading will actually use.
+	cfg := input.Cfg
+	cfg.Toolchain = toolchain
 	// XXX: dedup?
 	modDir, err := gosimtool.FindGoModDir()
 	if err != nil {
 		log.Fatal(err)
 	}
-	rootOutputDir := path.Join(modDir, gosimtool.OutputDirectory, "translated", input.Cfg.AsDirname())
+	rootOutputDir := path.Join(modDir, gosimtool.OutputDirectory, "translated", cfg.AsDirname())
 
 	cacheDir := path.Join(modDir, gosimtool.OutputDirectory)
 	if override := os.Getenv("GOSIMCACHE"); override != "" {
@@ -368,7 +382,7 @@ func Translate(input *TranslateInput) (*gosimtool.TranslateOutput, error) {
 	if err := os.MkdirAll(rootOutputDir, 0o755); err != nil {
 		log.Fatal(err)
 	}
-	return translatePackages(cache, input.Packages, rootOutputDir, input.Cfg)
+	return translatePackages(cache, input.Packages, rootOutputDir, cfg)
 }
 
 func buildReplacePackagesAndPackageNames(convertPkgs, allPkgs []*packages.Package) (replacedPkgs map[string]string, packageNames map[string]string) {

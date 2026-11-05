@@ -64,7 +64,7 @@ func GolangOrgXSysUnix_Getcwd(buf []byte) (n int, err error) {
 	return simulation.SyscallSysGetcwd(buf)
 }
 
-func GolangOrgXSysUnix_Getdents(fd int, buf []byte) (n int, err error) {
+func GolangOrgXSysUnix_getdents(fd int, buf []byte) (n int, err error) {
 	return simulation.SyscallSysGetdents64(fd, buf)
 }
 
