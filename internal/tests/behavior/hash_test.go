@@ -59,3 +59,41 @@ func TestRandMapHashComparable(t *testing.T) {
 	results = append(results, h.Sum64())
 	slog.Info("rand", "val", fmt.Sprint(results))
 }
+
+func TestMapHashRejectsMaps(t *testing.T) {
+	type named map[int]int
+	for _, value := range []any{
+		map[int]int{},
+		(map[int]int)(nil),
+		named{},
+		[1]map[int]int{},
+		struct{ Value any }{map[int]int{}},
+		struct{ _ map[int]int }{},
+	} {
+		t.Run(fmt.Sprintf("%T", value), func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("map value accepted as comparable")
+				}
+			}()
+			maphash.Comparable(maphash.MakeSeed(), value)
+		})
+	}
+	// Pointer targets do not participate in comparability.
+	m := map[int]int{}
+	seed := maphash.MakeSeed()
+	if maphash.Comparable(seed, &m) != maphash.Comparable(seed, &m) {
+		t.Fatal("pointer to map lost identity")
+	}
+}
+
+func TestMapHashWriteComparableRejectsMap(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("WriteComparable accepted map in interface")
+		}
+	}()
+	var h maphash.Hash
+	h.SetSeed(maphash.MakeSeed())
+	maphash.WriteComparable[any](&h, map[int]int{})
+}

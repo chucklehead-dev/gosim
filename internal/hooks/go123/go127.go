@@ -254,3 +254,17 @@ func RuntimeDebug_runtime_setCrashFD(fd uintptr) uintptr {
 	}
 	panic("gosim: runtime/debug.SetCrashOutput is unsupported; use simulation logs for panic reports")
 }
+
+// Host runtime execution traces describe host scheduling, not the simulated
+// execution. Refuse recording rather than emit misleading host trace data.
+func RuntimeTrace_runtime_traceAdvance(stopTrace bool) {
+	panic("gosim: runtime/trace recording is unsupported; use simulation logs and replay for execution diagnostics")
+}
+
+func RuntimeTrace_runtime_traceClockNow() uint64 {
+	panic("gosim: runtime/trace recording is unsupported; use simulation logs and replay for execution diagnostics")
+}
+
+func RuntimeTrace_runtime_traceClockUnitsPerSecond() uint64 {
+	panic("gosim: runtime/trace recording is unsupported; use simulation logs and replay for execution diagnostics")
+}

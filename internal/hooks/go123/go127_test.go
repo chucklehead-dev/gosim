@@ -144,3 +144,21 @@ func TestCrashOutputDoesNotModifyHostRuntime(t *testing.T) {
 	}()
 	RuntimeDebug_runtime_setCrashFD(123)
 }
+
+func TestRuntimeTraceRejectsHostRecording(t *testing.T) {
+	for name, invoke := range map[string]func(){
+		"advance":   func() { RuntimeTrace_runtime_traceAdvance(false) },
+		"clock":     func() { RuntimeTrace_runtime_traceClockNow() },
+		"frequency": func() { RuntimeTrace_runtime_traceClockUnitsPerSecond() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				message, ok := recover().(string)
+				if !ok || !strings.Contains(message, "runtime/trace recording is unsupported") {
+					t.Fatalf("expected actionable unsupported runtime trace, got %q", message)
+				}
+			}()
+			invoke()
+		})
+	}
+}

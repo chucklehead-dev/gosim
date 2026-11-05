@@ -113,3 +113,25 @@ func TestHashComparableReflectEdges(t *testing.T) {
 		})
 	}
 }
+
+func TestHashComparableRejectsSimulatedMaps(t *testing.T) {
+	type named Map[int, int]
+	for _, value := range []any{
+		NilMap[int, int](),
+		named{},
+		[1]Map[int, int]{},
+		struct{ V any }{NilMap[int, int]()},
+		struct{ _ Map[int, int] }{},
+	} {
+		t.Run(reflect.TypeOf(value).String(), func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("simulated map accepted as comparable")
+				}
+			}()
+			HashComparable(value, 7)
+		})
+	}
+	// A pointer to a map is comparable: do not inspect its target's type.
+	run(func() { m := NilMap[int, int](); HashComparable(&m, 7) }, 1, false, false, "INFO", makeConsoleLogger(os.Stderr), nil)
+}

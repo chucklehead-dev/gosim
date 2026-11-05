@@ -1,16 +1,19 @@
 package translate
 
 var hooksGo123 = map[packageSelector]packageSelector{
-	{Pkg: "runtime/debug", Selector: "runtime_setCrashFD"}:        {Pkg: hooksGo123Package},
-	{Pkg: "internal/runtime/atomic", Selector: "casPointer"}:      {Pkg: hooksGo123Package},
-	{Pkg: "internal/runtime/atomic", Selector: "storePointer"}:    {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "runtime_getAuxv"}:   {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscall"}:        {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscall6"}:       {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscallNoError"}: {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "Syscall"}:           {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "Syscall6"}:          {Pkg: hooksGo123Package},
-	{Pkg: "golang.org/x/sys/unix", Selector: "SyscallNoError"}:    {Pkg: hooksGo123Package},
+	{Pkg: "runtime/trace", Selector: "runtime_traceAdvance"}:             {Pkg: hooksGo123Package},
+	{Pkg: "runtime/trace", Selector: "runtime_traceClockNow"}:            {Pkg: hooksGo123Package},
+	{Pkg: "runtime/trace", Selector: "runtime_traceClockUnitsPerSecond"}: {Pkg: hooksGo123Package},
+	{Pkg: "runtime/debug", Selector: "runtime_setCrashFD"}:               {Pkg: hooksGo123Package},
+	{Pkg: "internal/runtime/atomic", Selector: "casPointer"}:             {Pkg: hooksGo123Package},
+	{Pkg: "internal/runtime/atomic", Selector: "storePointer"}:           {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "runtime_getAuxv"}:          {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscall"}:               {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscall6"}:              {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "RawSyscallNoError"}:        {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "Syscall"}:                  {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "Syscall6"}:                 {Pkg: hooksGo123Package},
+	{Pkg: "golang.org/x/sys/unix", Selector: "SyscallNoError"}:           {Pkg: hooksGo123Package},
 
 	// amd64 only?
 	{Pkg: "golang.org/x/sys/unix", Selector: "gettimeofday"}: {Pkg: hooksGo123Package},

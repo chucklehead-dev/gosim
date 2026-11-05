@@ -62,7 +62,7 @@ func appendHashValue(out []byte, value reflect.Value) []byte {
 	if !value.IsValid() {
 		return append(out, 0)
 	}
-	if !value.Type().Comparable() {
+	if !hashComparableType(value.Type()) {
 		panic("maphash: hash of unhashable type " + value.Type().String())
 	}
 	out = append(out, byte(value.Kind()))
@@ -107,6 +107,32 @@ func appendHashValue(out []byte, value reflect.Value) []byte {
 	default:
 		panic("maphash: hash of unhashable type " + value.Type().String())
 	}
+}
+
+// Translation represents maps as structurally comparable pointer wrappers,
+// including named map types. Apply source-language comparability recursively:
+// a map anywhere in an array or struct (even a blank field) is unhashable.
+func hashComparableType(typ reflect.Type) bool {
+	if !typ.Comparable() {
+		return false
+	}
+	switch typ.Kind() {
+	case reflect.Array:
+		return hashComparableType(typ.Elem())
+	case reflect.Struct:
+		if typ.NumField() == 1 {
+			field := typ.Field(0)
+			if field.Name == "Impl" && field.Type.Implements(reflect.TypeFor[ReflectMap]()) {
+				return false
+			}
+		}
+		for i := range typ.NumField() {
+			if !hashComparableType(typ.Field(i).Type) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func appendHashFloat(out []byte, value float64) []byte {
